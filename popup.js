@@ -1,33 +1,33 @@
-document.getElementById("summarise").addEventListener("click", () => {
-    const resultDiv = document.getElementById("result");
-    const summaryType = document.getElementById("summary-type").value;
 
-    resultDiv.innerHTML = '<div class="loader"></div>';
+document.getElementById("summarize").addEventListener("click", () => {
+
+    const resultArea = document.getElementById("result");
+    const summaryType = document.getElementById("summary-type").value;
+    resultArea.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="sr-only"></span></div></div>';
 
     chrome.storage.sync.get(["geminiApiKey"], (result) => {
         if (!result.geminiApiKey) {
-            resultDiv.textContent = "Please set your Gemini API key in options.";
+            resultArea.textContent = "Please set your Gemini API key in options.";
             return;
         }
         chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
-        chrome.tabs.sendMessage(
-            tab.id, 
-            { type: 'GET_ARTICLE_CONTENT' }, 
-            async ({ text }) => {
-                if (!text) {
-                    resultDiv.textContent = "No article content found.";
-                    return;
+            chrome.tabs.sendMessage(
+                tab.id, 
+                { type: 'GET_ARTICLE_CONTENT' }, 
+                async ({ text }) => {
+                    if (!text) {
+                        resultArea.textContent = "No article content found.";
+                        return;
+                    }
+                    try {
+                        const summaryText = await getGeminiSummary(text, summaryType, result.geminiApiKey);
+                        resultArea.textContent = summaryText;
+                    } catch (error) {
+                        console.error("Error fetching summary:", error);
+                        resultArea.textContent = "Error fetching summary. Please try again.";
+                    }
                 }
-
-                try {
-                    const summaryText = await getGeminiSummary(text, summaryType, result.geminiApiKey);
-                    resultDiv.textContent = summaryText;
-                } catch (error) {
-                    console.error("Error fetching summary:", error);
-                    resultDiv.textContent = "Error fetching summary. Please try again.";
-                }
-            }
-        );
+            );
         });         
     });
 });
@@ -71,20 +71,32 @@ async function getGeminiSummary(rawText, summaryType, apiKey) {
     return data.candidates?.[0]?.content?.parts?.[0]?.text ?? "No summary available.";
 }
 
-document.getElementById("copy-btn").addEventListener("click", () => {
-    const txt = document.getElementById("result").innerText;
+document.getElementById("download-btn").addEventListener("click", () => {
+    const resultArea = document.getElementById("result");
+    const txt = resultArea.textContent;
     if(!txt) {
         return;
     }
+    // Copy to clipboard
     navigator.clipboard.writeText(txt).then(() => {
-        const btn = document.getElementById("copy-btn");
+        const btn = document.getElementById("download-btn");
         const old = btn.textContent;
-        btn.textContent = "Copied!";
+        btn.textContent = "Copied & Downloaded!";
         setTimeout(() => {
             btn.textContent = old;
         }, 2000);
     }).catch(err => {
         console.error("Failed to copy text: ", err);
     });
+    // Download as txt
+    const blob = new Blob([txt], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'summary.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
 });
 
