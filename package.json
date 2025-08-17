@@ -1,0 +1,7 @@
+{
+  "name": "article-summariser-extension",
+  "version": "1.0.0",
+  "description": "A Chrome extension to summarise articles using Gemini API.",
+  "scripts": {
+  }
+}
